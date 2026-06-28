@@ -1,0 +1,144 @@
+name: Build & Publish
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-artifacts:
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [macos-latest, ubuntu-latest, windows-latest]
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn --frozen-lockfile --network-timeout 600000
+
+      - name: Lint
+        run: yarn lint
+
+      - name: Build (Unix)
+        if: matrix.platform != 'windows-latest'
+        env:
+          LINDO_KEY: ${{ secrets.LINDO_KEY }}
+        run: LINDO_KEY=$LINDO_KEY yarn build
+
+      - name: Build (Windows)
+        if: matrix.platform == 'windows-latest'
+        env:
+          LINDO_KEY: ${{ secrets.LINDO_KEY }}
+        run: |
+          $env:LINDO_KEY="${{ secrets.LINDO_KEY }}"
+          yarn build
+
+      - name: Extract version
+        id: extract_version
+        uses: Saionaro/extract-package-version@v1.2.1
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        if: matrix.platform == 'windows-latest'
+        with:
+          name: windows
+          path: |
+            release/${{ steps.extract_version.outputs.version }}/Lindo-${{ steps.extract_version.outputs.version }}-win.zip
+            release/${{ steps.extract_version.outputs.version }}/Lindo-${{ steps.extract_version.outputs.version }}-ia32-win.zip
+            release/${{ steps.extract_version.outputs.version }}/Lindo-${{ steps.extract_version.outputs.version }}.exe
+            release/${{ steps.extract_version.outputs.version }}/Lindo-Setup-${{ steps.extract_version.outputs.version }}.exe
+            release/${{ steps.extract_version.outputs.version }}/Lindo-Setup-${{ steps.extract_version.outputs.version }}.exe.blockmap
+            release/${{ steps.extract_version.outputs.version }}/latest.yml
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        if: matrix.platform == 'macos-latest'
+        with:
+          name: macos
+          path: |
+            release/${{ steps.extract_version.outputs.version }}/Lindo-${{ steps.extract_version.outputs.version }}.dmg
+            release/${{ steps.extract_version.outputs.version }}/Lindo-${{ steps.extract_version.outputs.version }}.dmg.blockmap
+            release/${{ steps.extract_version.outputs.version }}/Lindo-${{ steps.extract_version.outputs.version }}-arm64.dmg
+            release/${{ steps.extract_version.outputs.version }}/Lindo-${{ steps.extract_version.outputs.version }}-arm64.dmg.blockmap
+            release/${{ steps.extract_version.outputs.version }}/Lindo-${{ steps.extract_version.outputs.version }}-mac.zip
+            release/${{ steps.extract_version.outputs.version }}/Lindo-${{ steps.extract_version.outputs.version }}-mac.zip.blockmap
+            release/${{ steps.extract_version.outputs.version }}/Lindo-${{ steps.extract_version.outputs.version }}-arm64-mac.zip
+            release/${{ steps.extract_version.outputs.version }}/Lindo-${{ steps.extract_version.outputs.version }}-arm64-mac.zip.blockmap
+            release/${{ steps.extract_version.outputs.version }}/latest-mac.yml
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        if: matrix.platform == 'ubuntu-latest'
+        with:
+          name: linux
+          path: |
+            release/${{ steps.extract_version.outputs.version }}/Lindo-${{ steps.extract_version.outputs.version }}.AppImage
+            release/${{ steps.extract_version.outputs.version }}/Lindo-${{ steps.extract_version.outputs.version }}-arm64.AppImage
+            release/${{ steps.extract_version.outputs.version }}/lindo-${{ steps.extract_version.outputs.version }}.tar.gz
+            release/${{ steps.extract_version.outputs.version }}/lindo-${{ steps.extract_version.outputs.version }}-arm64.tar.gz
+            release/${{ steps.extract_version.outputs.version }}/lindo_${{ steps.extract_version.outputs.version }}_amd64.deb
+            release/${{ steps.extract_version.outputs.version }}/lindo_${{ steps.extract_version.outputs.version }}_arm64.deb
+            release/${{ steps.extract_version.outputs.version }}/latest-linux.yml
+
+  create-release:
+    name: "Create GitHub Release"
+    runs-on: ubuntu-latest
+    needs: [build-artifacts]
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Display downloaded structure
+        run: ls -R
+
+      - name: Extract version
+        id: extract_version
+        uses: Saionaro/extract-package-version@v1.2.1
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          prerelease: false
+          draft: false
+          name: "v${{ steps.extract_version.outputs.version }}"
+          generate_release_notes: true
+          files: |
+            windows/Lindo-${{ steps.extract_version.outputs.version }}.exe
+            windows/Lindo-Setup-${{ steps.extract_version.outputs.version }}.exe
+            windows/Lindo-Setup-${{ steps.extract_version.outputs.version }}.exe.blockmap
+            windows/Lindo-${{ steps.extract_version.outputs.version }}-win.zip
+            windows/Lindo-${{ steps.extract_version.outputs.version }}-ia32-win.zip
+            windows/latest.yml
+            linux/Lindo-${{ steps.extract_version.outputs.version }}.AppImage
+            linux/Lindo-${{ steps.extract_version.outputs.version }}-arm64.AppImage
+            linux/lindo-${{ steps.extract_version.outputs.version }}.tar.gz
+            linux/lindo-${{ steps.extract_version.outputs.version }}-arm64.tar.gz
+            linux/lindo_${{ steps.extract_version.outputs.version }}_amd64.deb
+            linux/lindo_${{ steps.extract_version.outputs.version }}_arm64.deb
+            linux/latest-linux.yml
+            macos/Lindo-${{ steps.extract_version.outputs.version }}.dmg
+            macos/Lindo-${{ steps.extract_version.outputs.version }}.dmg.blockmap
+            macos/Lindo-${{ steps.extract_version.outputs.version }}-arm64.dmg
+            macos/Lindo-${{ steps.extract_version.outputs.version }}-arm64.dmg.blockmap
+            macos/Lindo-${{ steps.extract_version.outputs.version }}-mac.zip
+            macos/Lindo-${{ steps.extract_version.outputs.version }}-mac.zip.blockmap
+            macos/Lindo-${{ steps.extract_version.outputs.version }}-arm64-mac.zip
+            macos/Lindo-${{ steps.extract_version.outputs.version }}-arm64-mac.zip.blockmap
+            macos/latest-mac.yml

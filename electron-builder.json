@@ -1,0 +1,110 @@
+{
+  "appId": "com.nuble.app",
+  "productName": "Nuble",
+  "copyright": "Copyright © 2026 Nuble Contributors",
+  "publish": [
+    {
+      "provider": "github",
+      "owner": "cactusyz07",
+      "repo": "nuble"
+    }
+  ],
+  "asar": true,
+  "directories": {
+    "output": "release/${version}",
+    "buildResources": "resources"
+  },
+  "files": [
+    "dist",
+    "CHANGELOG.md",
+    "LICENCE"
+  ],
+  "extraResources": [
+    {
+      "from": "resources/icon.png",
+      "to": "icon.png"
+    }
+  ],
+  "win": {
+    "icon": "resources/nuble.ico",
+    "target": [
+      {
+        "target": "zip",
+        "arch": [
+          "x64",
+          "ia32"
+        ]
+      },
+      {
+        "target": "portable",
+        "arch": [
+          "x64",
+          "ia32"
+        ]
+      },
+      {
+        "target": "nsis",
+        "arch": [
+          "x64",
+          "ia32"
+        ]
+      }
+    ]
+  },
+  "nsis": {
+    "artifactName": "${productName}-Setup-${version}.${ext}",
+    "oneClick": false,
+    "perMachine": false,
+    "allowToChangeInstallationDirectory": true,
+    "deleteAppDataOnUninstall": false
+  },
+  "portable": {
+    "artifactName": "${productName}-${version}.${ext}"
+  },
+  "afterPack": "./scripts/afterPackHook.js",
+  "mac": {
+    "target": [
+      {
+        "target": "default",
+        "arch": [
+          "x64",
+          "arm64"
+        ]
+      }
+    ],
+    "category": "public.app-category.games"
+  },
+  "linux": {
+    "executableName": "Nuble",
+    "description": "Nuble Client for Linux",
+    "icon": "resources/icons",
+    "desktop": "resources/lindo.desktop",
+    "target": [
+      {
+        "target": "AppImage",
+        "arch": [
+          "x64",
+          "arm64"
+        ]
+      },
+      {
+        "target": "tar.gz",
+        "arch": [
+          "x64",
+          "arm64"
+        ]
+      },
+      {
+        "target": "deb",
+        "arch": [
+          "x64",
+          "arm64"
+        ]
+      }
+    ],
+    "mimeTypes": [
+      "application/x-binary"
+    ],
+    "maintainer": "Prixe"
+  }
+}
